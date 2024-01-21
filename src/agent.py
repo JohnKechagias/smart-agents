@@ -1,26 +1,32 @@
-import numpy as np
 from dataclasses import dataclass
-from enum import Enum, auto
-from .constants import Position, Tile, Tiles, Map
+from enum import StrEnum, auto
+from random import randint
+
+from .config import GameConfig
+from .map import Map
+from .tiles import Tiles, TileType
+from .types import Coords
 
 
-class State(Enum):
+class State(StrEnum):
     GATHERING_RESOURCE = auto()
+    GATHERING_GOLD = auto()
     GATHERING_ENERGY_POT = auto()
     STORING_RESOURCE = auto()
-    EXPORING = auto()
+    SEARCHING_FOR_RESOURCE = auto()
+    SEARCHING_FOR_ENERGY_POT = auto()
 
 
-class EnergyState(Enum):
+class Energy(StrEnum):
     ENERGETIC = auto()
-    TIRED = auto()
     EXCHAUSTED = auto()
 
 
-@dataclass
+@dataclass(frozen=True)
 class Village:
-    center: Position
-    tile: Tile
+    center: Coords
+    tile: TileType
+    radius: int = 10
 
 
 @dataclass
@@ -32,136 +38,345 @@ class ResourcePile:
         self.wood = 0
         self.iron = 0
         self.wheat = 0
+        self.wanted_resources: list[TileType] = []
 
-        self.wanted_resources = [
-            Tiles.WOOD,
-            Tiles.IRON,
-            Tiles.WHEAT,
-        ]
+        if wood > 0:
+            self.wanted_resources.append(Tiles.WOOD)
+        if iron > 0:
+            self.wanted_resources.append(Tiles.IRON)
+        if wheat > 0:
+            self.wanted_resources.append(Tiles.WHEAT)
 
-    def add(self, resource: Tile):
-        resource_mapper = {
-            Tiles.WOOD.index: self.wood,
-            Tiles.IRON.index: self.iron,
-            Tiles.WHEAT.index: self.wheat,
-        }
-        resource_mapper[resource.index] += 1
+    def add(self, resource: TileType):
+        if resource == Tiles.WOOD:
+            self.wood += 1
 
-        if resource == Tiles.WOOD and self.wood >= self.wanted_wood_count:
-            self.wanted_resources.remove(Tiles.WOOD)
-        elif resource == Tiles.IRON and self.iron >= self.wanted_iron_count:
-            self.wanted_resources.remove(Tiles.IRON)
-        elif resource == Tiles.WHEAT and self.wheat >= self.wanted_wheat_count:
-            self.wanted_resources.remove(Tiles.WHEAT)
+            if (
+                self.wood >= self.wanted_wood_count
+                and Tiles.WOOD in self.wanted_resources
+            ):
+                self.wanted_resources.remove(Tiles.WOOD)
+        elif resource == Tiles.IRON:
+            self.iron += 1
 
-    def is_needed(self, tile: Tile) -> bool:
+            if (
+                self.iron >= self.wanted_iron_count
+                and Tiles.IRON in self.wanted_resources
+            ):
+                self.wanted_resources.remove(Tiles.IRON)
+        elif resource == Tiles.WHEAT:
+            self.wheat += 1
+
+            if (
+                self.wheat >= self.wanted_wheat_count
+                and Tiles.WHEAT in self.wanted_resources
+            ):
+                self.wanted_resources.remove(Tiles.WHEAT)
+
+    def is_needed(self, tile: TileType) -> bool:
         return tile in self.wanted_resources
+
+    def __repr__(self) -> str:
+        return f"ResourcePile(wood={self.wood}, iron={self.iron}, wheat={self.wheat})"
 
 
 class Team:
     village: Village
     resources: ResourcePile
-    agent_tile: Tile
+    agent_tile: TileType
+    _id_counter = -1
 
-    def __init__(self, village: Village, resources: ResourcePile,  agents: int, agent_tile: Tile):
+    def __init__(
+        self,
+        village: Village,
+        resources: ResourcePile,
+        agent_tile: TileType,
+        config: GameConfig,
+    ):
+        self.id = self.get_id()
+        self.config = config
         self.village = village
         self.resources = resources
-        self.agents = [Agent(self, agent_tile) for _ in range(agents)]
+        self.agent_tile = agent_tile
+        self.agents: list[Agent] = []
+        self.targets = []
+
+    @classmethod
+    def get_id(cls) -> int:
+        cls._id_counter += 1
+        return cls._id_counter
+
+    def print_resources(self):
+        print(f"Team {self.id} {self.resources}")
 
 
 class Agent:
-    def __init__(self, team: Team, tile: Tile):
+    _id_counter = -1
+
+    def __init__(
+        self,
+        team: Team,
+        map: Map,
+        game_map: Map,
+        position: Coords,
+    ):
+        self.move_range = 1
+        self.id = self.get_id()
         self.team = team
-        self.map = Map(np.zeros([10, 10]))
-        self.state = State.EXPORING
-        self.energy = EnergyState.ENERGETIC
+        self.tile_type = team.agent_tile
+        self.game_map = game_map
+        self.map = map
+
+        self.state = State.SEARCHING_FOR_RESOURCE
+        self.energy_state = Energy.ENERGETIC
         self.collected_resource = Tiles.EMPTY
-        self.position = team.village.center
-        self.target: Position = team.village.center
-        self.visited_tiles: list[Position] = []
-        self.tile_symbol = tile
+        self.target: Coords = team.village.center
+        self.visited_tiles: set[Coords] = set()
+        self.has_explore_target = False
+
+        self.gold = 0
+        self._energy = 100
+        self._position = position
+        self._tile_standing_on = Tiles.EMPTY
+        self.print_map()
+
+    @classmethod
+    def get_id(cls) -> int:
+        cls._id_counter += 1
+        return cls._id_counter
 
     @property
-    def tile(self) -> Tile:
+    def position(self) -> Coords:
+        return self._position
+
+    @position.setter
+    def position(self, value: Coords):
+        for x in range(
+            self.position.x - self.move_range, self.position.x + self.move_range + 1
+        ):
+            if x < 0 or x >= self.map.width:
+                continue
+
+            for y in range(
+                self.position.y - self.move_range, self.position.y + self.move_range + 1
+            ):
+                if y < 0 or y >= self.map.height:
+                    continue
+
+                coords = Coords(x, y)
+                tile = self.game_map.get_tile(coords)
+
+                if tile in (Tiles.AGENT_1, Tiles.AGENT_2):
+                    continue
+
+                self.map.set_tile(coords, tile)
+
+        self.visited_tiles.add(value)
+        self.map.set_tile(self._position, self._tile_standing_on)
+        self.game_map.set_tile(self._position, self._tile_standing_on)
+        self._tile_standing_on = self.game_map.get_tile(value)
+        self.game_map.set_tile(value, self.tile_type)
+        self._position = value
+
+    @property
+    def tile(self) -> TileType:
         return self.map.get_tile(self.position)
 
     @tile.setter
-    def tile(self, tile: Tile):
+    def tile(self, tile: TileType):
+        self._tile_standing_on = tile
         self.map.set_tile(self.position, tile)
 
+    @property
+    def energy(self) -> int:
+        return self._energy
+
+    @energy.setter
+    def energy(self, energy: int):
+        self.energy_state = Energy.EXCHAUSTED if energy < 40 else Energy.ENERGETIC
+        self._energy = energy
+
+    def print_map(self):
+        self.map.print(f"{self.id}_map.txt")
+
     def update(self):
-        if self.state == State.GATHERING_RESOURCE:
-            if self.position != self.target:
-                self.move_to_target()
+        print(f"updating agent {self.id} of team {self.team.id}")
+        if (
+            self.energy_state == Energy.EXCHAUSTED
+            and self.state != State.GATHERING_ENERGY_POT
+        ):
+            self.state = State.SEARCHING_FOR_ENERGY_POT
+            print(f"agent {self.id} searches for energy pot")
+
+        if self.state == State.SEARCHING_FOR_ENERGY_POT:
+            if self.locate_energy_pot():
+                self.state = State.GATHERING_ENERGY_POT
+                print(f"agent {self.id} is on his way to collect energy pot")
+            elif not self.has_explore_target:
+                self.set_explore_target()
+                print(f"agent {self.id} is exploring")
+
+            self.move_to_target()
+        elif self.state == State.GATHERING_ENERGY_POT:
+            self.gather_energy_pot()
+
+        elif self.state == State.GATHERING_RESOURCE:
+            self.gather_resource()
+
+        elif self.state == State.STORING_RESOURCE:
+            self.store_resource()
+
+        elif self.state == State.SEARCHING_FOR_RESOURCE:
+            if self.locate_resource():
+                self.state = State.GATHERING_RESOURCE
+            else:
+                self.set_explore_target()
+
+            self.move_to_target()
+
+        print(self.state)
+
+    def gather_energy_pot(self):
+        if self.position == self.target:
+            if self._tile_standing_on != Tiles.ENERGY_POT:
+                self.state = State.SEARCHING_FOR_ENERGY_POT
+                return
+
+            self.pick_up_energy_pot()
+            self.state = State.SEARCHING_FOR_RESOURCE
+        else:
+            self.move_to_target()
+
+    def locate_energy_pot(self):
+        if self.locate_tile(Tiles.ENERGY_POT):
+            self.state = State.GATHERING_ENERGY_POT
+        else:
+            self.set_explore_target()
+
+    def locate_tile(self, tile_to_locate: TileType) -> bool:
+        for pos in self.map.positions:
+            tile = self.map.get_tile(pos)
+            if tile == tile_to_locate:
+                self.has_explore_target = False
+                self.target = pos
+                self.team.targets.append(pos)
+                return True
+        return False
+
+    def locate_resource(self) -> bool:
+        for pos in self.map.positions:
+            tile = self.map.get_tile(pos)
+            if self.team.resources.is_needed(tile) and pos not in self.team.targets:
+                self.target = pos
+                self.team.targets.append(pos)
+                self.has_explore_target = False
+                self.state = State.GATHERING_RESOURCE
+                return True
+        return False
+
+    def gather_resource(self):
+        if self.position == self.target:
+            if not self.team.resources.is_needed(self._tile_standing_on):
+                self.state = State.SEARCHING_FOR_RESOURCE
                 return
 
             self.pick_up_resource()
-        elif self.state == State.STORING_RESOURCE:
-            if self.tile != self.team.village.tile:
-                self.move_to_target()
-                return
+        else:
+            self.move_to_target()
 
+    def store_resource(self):
+        if self.tile == self.team.village.tile:
+            print(f"agent {self.id} stored resource {self.collected_resource}")
             self.team.resources.add(self.collected_resource)
             self.collected_resource = Tiles.EMPTY
-            self.state = (
-                State.GATHERING_RESOURCE if self.can_find_resource() else State.EXPORING
-            )
-
-        elif self.state == State.EXPORING:
-            self.explore()
-            for i in range(self.map.matrix.shape[0]):
-                for j in range(self.map.matrix.shape[1]):
-                    pos = Position(i, j)
-                    if self.map.get_tile(pos) in (
-                        Tiles.WHEAT,
-                        Tiles.GOLD,
-                        Tiles.WOOD,
-                    ):
-                        self.target = pos
-                        self.state = State.GATHERING_RESOURCE
-                        return
+            self.state = State.SEARCHING_FOR_RESOURCE
+            self.locate_resource()
+        else:
+            self.move_to_target()
 
     def move_to_target(self):
         scores = []
-        for x in range(self.position.x - 1, self.position.x + 2):
-            for y in range(self.position.y - 1, self.position.y + 2):
-                scores.append(
-                    (Position(x, y), abs(self.target.x - x) + abs(self.target.y - y))
-                )
+        for x in range(
+            self.position.x - self.move_range, self.position.x + self.move_range + 1
+        ):
+            if x < 0 or x >= self.map.width:
+                continue
+
+            for y in range(
+                self.position.y - self.move_range, self.position.y + self.move_range + 1
+            ):
+                if y < 0 or y >= self.map.height:
+                    continue
+
+                score = abs(self.target.x - x) + abs(self.target.y - y)
+                coords = Coords(x, y)
+                scores.append((coords, score))
 
         scores.sort(key=lambda entry: entry[1])
-        for hop_candidate in scores:
-            if hop_candidate[0] not in self.visited_tiles:
-                self.visited_tiles.append(hop_candidate[0])
-                self.position = scores[0]
-                return
+        for hop_coords, _ in scores:
+            if hop_coords in self.visited_tiles:
+                continue
+
+            print(f"agent {self.id} moved from {self.position} to {hop_coords}")
+            self.position = hop_coords
+            return
+
+        self.visited_tiles.clear()
 
     def pick_up_energy_pot(self):
-        pass
+        print(f"agent {self.id} picked up energy pot")
+        self.tile = Tiles.EMPTY
+        new_energy_bar = self._energy + self.team.config.energy_pots_energy
+        self._energy = min(new_energy_bar, 100)
+        self.visited_tiles.clear()
 
     def pick_up_gold(self):
-        pass
+        print(f"agent {self.id} picked up gold")
+        self.tile = Tiles.EMPTY
+        self.gold += 1
+        self.visited_tiles.clear()
 
     def pick_up_resource(self):
+        print(f"agent {self.id} picked up resource {self.tile.name}")
         self.collected_resource = self.tile
         self.tile = Tiles.EMPTY
         self.visited_tiles.clear()
-        self.action = State.STORING_RESOURCE
-        self.target = self.team.village.center
+        self.locate_tile(self.team.village.tile)
+        self.team.targets.remove(self.position)
+        self.state = State.STORING_RESOURCE
 
     def buy_energy_pot(self):
-        pass
+        print(f"agent {self.id} bought energy pot")
+        self.gold -= self.team.config.energy_pot_price
+        new_energy_bar = self._energy + self.team.config.energy_pots_energy
+        self._energy = min(new_energy_bar, 100)
+        self.visited_tiles.clear()
 
-    def buy_map(self):
-        pass
+    def buy_map(self, map: Map):
+        print(f"agent {self.id} bought a map")
+        self.gold -= self.team.config.map_price
+        for pos in self.map.positions:
+            tile = self.map.get_tile(pos)
+            if tile == Tiles.UNKNOWN:
+                tile_to_set = map.get_tile(pos)
+                self.map.set_tile(pos, tile_to_set)
 
-    def can_find_resource(self) -> bool:
-        for i in range(self.map.matrix.shape[0]):
-            for j in range(self.map.matrix.shape[1]):
-                if self.team.resources.is_needed(Tiles.get(self.map.matrix[i][j])):
-                    self.target = Position(i, j)
-                    return True
-        return False
+            if map.get_tile(pos) == Tiles.EMPTY:
+                self.map.set_tile(pos, Tiles.EMPTY)
 
-    def explore(self):
-        ...
+    def set_explore_target(self):
+        unknown_block_index = randint(0, self.map.size - 1)
+        unknown_blocks_positions = []
+
+        for pos in self.map.positions:
+            if self.map.get_tile(pos) == Tiles.UNKNOWN:
+                unknown_blocks_positions.append(pos)
+
+            if len(unknown_blocks_positions) > unknown_block_index:
+                self.target = pos
+                self.has_explore_target = True
+                return
+
+        random_unknown_block_index = unknown_block_index % len(unknown_blocks_positions)
+        self.target = unknown_blocks_positions[random_unknown_block_index]
+        self.has_explore_target = True

@@ -1,3 +1,5 @@
 numpy
 black
 isort
+toml
+arcade @ git+https://github.com/pythonarcade/arcade.git@development
