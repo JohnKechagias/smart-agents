@@ -1,14 +1,14 @@
 agents = 3
 
 energy_pots = 20
-energy_pots_energy = 10
+energy_pots_energy = 100
 golds = 20
 
 energy_pot_price = 2
 map_price = 3
 
-width = 30
-height = 30
+width = 100
+height = 100
 
 [team1]
 wood = 10

@@ -49,7 +49,7 @@ class Tiles:
     WHEAT = TileType("wheat", "H")
     GOLD = TileType("gold", "G")
     ENERGY_POT = TileType("energy_pot", "P")
-    AGENT_1 = TileType("agent1", "H")
+    AGENT_1 = TileType("agent1", "O")
     AGENT_2 = TileType("agent2", "V")
 
     @classmethod

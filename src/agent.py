@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum, auto
 from random import randint
+from typing import Optional
 
 from .config import GameConfig
 from .map import Map
@@ -119,13 +122,16 @@ class Agent:
         map: Map,
         game_map: Map,
         position: Coords,
+        map_price: int,
+        move_range: int = 1,
     ):
-        self.move_range = 1
+        self.move_range = move_range
         self.id = self.get_id()
         self.team = team
         self.tile_type = team.agent_tile
         self.game_map = game_map
         self.map = map
+        self.map_price = map_price
 
         self.state = State.SEARCHING_FOR_RESOURCE
         self.energy_state = Energy.ENERGETIC
@@ -193,7 +199,7 @@ class Agent:
 
     @energy.setter
     def energy(self, energy: int):
-        self.energy_state = Energy.EXCHAUSTED if energy < 40 else Energy.ENERGETIC
+        self.energy_state = Energy.EXCHAUSTED if energy < 50 else Energy.ENERGETIC
         self._energy = energy
 
     def print_map(self):
@@ -201,16 +207,27 @@ class Agent:
 
     def update(self):
         print(f"updating agent {self.id} of team {self.team.id}")
-        if (
-            self.energy_state == Energy.EXCHAUSTED
-            and self.state != State.GATHERING_ENERGY_POT
+        if self.energy_state == Energy.EXCHAUSTED and self.state not in (
+            State.GATHERING_ENERGY_POT,
+            State.SEARCHING_FOR_ENERGY_POT,
         ):
             self.state = State.SEARCHING_FOR_ENERGY_POT
-            print(f"agent {self.id} searches for energy pot")
+            print(f"agent {self.id} searches for energy pot. energy: {self.energy}")
 
-        if self.state == State.SEARCHING_FOR_ENERGY_POT:
+        if self.game_map.get_tile(self.position) == Tiles.GOLD:
+            self.pick_up_gold()
+
+        elif self.gold > self.map_price:
+            neighbor = self.get_neighboring_agent()
+
+            if neighbor is not None:
+                self.combine_maps(neighbor.map)
+                neighbor.gold += self.map_price
+                self.gold -= self.map_price
+
+        elif self.state == State.SEARCHING_FOR_ENERGY_POT:
+            print(f"agent {self.id} searches for energy pot. energy: {self.energy}")
             if self.locate_energy_pot():
-                self.state = State.GATHERING_ENERGY_POT
                 print(f"agent {self.id} is on his way to collect energy pot")
             elif not self.has_explore_target:
                 self.set_explore_target()
@@ -234,7 +251,25 @@ class Agent:
 
             self.move_to_target()
 
-        print(self.state)
+        self.energy -= 1
+
+    def get_neighboring_agent(self) -> Optional[Agent]:
+        for x in range(self.position.x - 1, self.position.x + 2):
+            if x < 0 or x >= self.map.width:
+                continue
+
+            for y in range(self.position.y - 1, self.position.y + 2):
+                if y < 0 or y >= self.map.height:
+                    continue
+
+                coords = Coords(x, y)
+                if (
+                    coords != self.position
+                    and self.game_map.get_tile(coords) == self.team.agent_tile
+                ):
+                    for agent in self.team.agents:
+                        if agent.position == coords:
+                            return agent
 
     def gather_energy_pot(self):
         if self.position == self.target:
@@ -248,10 +283,13 @@ class Agent:
             self.move_to_target()
 
     def locate_energy_pot(self):
-        if self.locate_tile(Tiles.ENERGY_POT):
+        located_energy_pot = self.locate_tile(Tiles.ENERGY_POT)
+        if located_energy_pot:
             self.state = State.GATHERING_ENERGY_POT
         else:
             self.set_explore_target()
+
+        return located_energy_pot
 
     def locate_tile(self, tile_to_locate: TileType) -> bool:
         for pos in self.map.positions:
@@ -314,7 +352,9 @@ class Agent:
 
         scores.sort(key=lambda entry: entry[1])
         for hop_coords, _ in scores:
-            if hop_coords in self.visited_tiles:
+            curr_tile = self.game_map.get_tile(hop_coords)
+            is_hope_target_agent = curr_tile in (Tiles.AGENT_1, Tiles.AGENT_2)
+            if hop_coords in self.visited_tiles or is_hope_target_agent:
                 continue
 
             print(f"agent {self.id} moved from {self.position} to {hop_coords}")
@@ -334,7 +374,6 @@ class Agent:
         print(f"agent {self.id} picked up gold")
         self.tile = Tiles.EMPTY
         self.gold += 1
-        self.visited_tiles.clear()
 
     def pick_up_resource(self):
         print(f"agent {self.id} picked up resource {self.tile.name}")
@@ -380,3 +419,9 @@ class Agent:
         random_unknown_block_index = unknown_block_index % len(unknown_blocks_positions)
         self.target = unknown_blocks_positions[random_unknown_block_index]
         self.has_explore_target = True
+
+    def combine_maps(self, map: Map):
+        for pos in self.map.positions:
+            new_tile = map.get_tile(pos)
+            if self.map.get_tile(pos) == Tiles.UNKNOWN and new_tile != Tiles.UNKNOWN:
+                self.map.set_tile(pos, new_tile)

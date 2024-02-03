@@ -1,0 +1,26 @@
+from enum import IntEnum
+
+
+class Theme(IntEnum):
+    LIGHT = 0
+    DARK = 1
+
+
+# Color theme of the program
+COLOR_THEME = Theme.DARK
+# Title of the window
+TITLE = "Smart Agents"
+
+
+WINDOW_WIDTH = 2000
+WINDOW_HEIGHT = 2000
+WINDOW_PADDING = 50
+BOARD_PADDING = 2
+
+MENU_HEIGHT = 200
+MENU_WIDTH = WINDOW_WIDTH - 2 * WINDOW_PADDING
+MENU_PADDING = 50
+
+WIDTH = 100
+TILE_WIDTH = (WINDOW_WIDTH - 2 * WINDOW_PADDING) / WIDTH
+TILE_HEIGHT = TILE_WIDTH

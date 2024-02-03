@@ -39,7 +39,7 @@ class GameMap(Map):
     def get_variance(self) -> int:
         return random.randint(-(self.variance // 2), self.variance // 2)
 
-    def generate_players(self, team: Team, num_of_players: int):
+    def generate_players(self, team: Team, num_of_players: int, map_price: int):
         center = team.village.center
         radius = self.village_radius
 
@@ -56,7 +56,7 @@ class GameMap(Map):
                 if x_inside_village and y_inside_village:
                     agent_map[pos.x][pos.y] = self.matrix[pos.x][pos.y]
 
-            agent = Agent(team, Map(agent_map), self, position)
+            agent = Agent(team, Map(agent_map), self, position, map_price)
             team.agents.append(agent)
 
     def get_unpopulated_tile_inside_village(
