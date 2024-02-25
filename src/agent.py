@@ -10,6 +10,9 @@ from .map import Map
 from .tiles import Tiles, TileType
 from .types import Coords
 
+import arcade
+
+
 
 class State(StrEnum):
     GATHERING_RESOURCE = auto()
@@ -112,6 +115,31 @@ class Team:
     def print_resources(self):
         print(f"Team {self.id} {self.resources}")
 
+    def render(self):
+        a = f"Team:{self.id}\n|Iron:{self.resources.iron}/{self.resources.wanted_iron_count}\n|Wheat:{self.resources.wheat}/{self.resources.wanted_wheat_count}\n|Wood:{self.resources.wood}/{self.resources.wanted_wood_count}"
+        print(a)
+        if self.id == 0:
+            arcade.draw_text(
+                a,
+                self.id * 2 + 50 + 500,
+                1500,
+                arcade.color.RED,
+                16,
+                width=100,
+                multiline=True,
+                start_z= -5,
+            )
+        if self.id == 1:
+            arcade.draw_text(
+                a,
+                self.id * 2 + 50 + 1000,
+                1500,
+                arcade.color.RED,
+                16,
+                width=100,
+                multiline=True,
+                start_z= -5,
+            )
 
 class Agent:
     _id_counter = -1

@@ -29,6 +29,7 @@ class Game(arcade.Window):
         Tile.width = (width - 2 * WINDOW_PADDING) / game_config.width
         Tile.height = Tile.width
 
+        self.paused = False
         self.game_config = game_config
         self.initialize(game_config)
         self.setup(game_config.width)
@@ -98,14 +99,15 @@ class Game(arcade.Window):
         self.map.print_map()
 
     def on_update(self, delta_time: float):
-        for team in self.teams:
-            for agent in team.agents:
-                agent.update()
+        if not self.paused:
+            for team in self.teams:
+                for agent in team.agents:
+                    agent.update()
 
-        for team in self.teams:
-            if not team.resources.wanted_resources:
-                print(f"Team {team.id} Won!")
-                exit()
+            for team in self.teams:
+                if not team.resources.wanted_resources:
+                    print(f"Team {team.id} Won!")
+                    exit()
 
     def on_draw(self):
         for tile, tile_index in zip(self.tiles, self.map.matrix.flat):
@@ -113,6 +115,22 @@ class Game(arcade.Window):
 
         self.clear()
         self.shapes_list.draw()
-
+        
         for tile in self.tiles:
             tile.render()
+
+        for team in self.teams:
+            team.render()
+
+    def pause_game(self):
+        print("GAME PAUSED")
+        self.paused = True
+
+    def resume_game(self):
+        print("GAME RESUMED")
+        self.paused = False
+
+    def restart_game(self):
+        print("GAME RESTARTED")
+        self.paused = False
+        self.reset()

@@ -7,8 +7,8 @@ golds = 20
 energy_pot_price = 2
 map_price = 3
 
-width = 100
-height = 100
+width = 20
+height = 20
 
 [team1]
 wood = 10
