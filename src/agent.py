@@ -79,6 +79,14 @@ class ResourcePile:
     def is_needed(self, tile: TileType) -> bool:
         return tile in self.wanted_resources
 
+    def get_resourse_repr(self) -> str:
+        lines = [
+            f"Wood: {self.wood}/{self.wanted_wood_count}",
+            f"Iron: {self.iron}/{self.wanted_iron_count}",
+            f"Wheat: {self.wheat}/{self.wanted_wheat_count}",
+        ]
+        return " ".join(lines)
+
     def __repr__(self) -> str:
         return f"ResourcePile(wood={self.wood}, iron={self.iron}, wheat={self.wheat})"
 

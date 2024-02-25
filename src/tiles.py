@@ -51,6 +51,7 @@ class Tiles:
     ENERGY_POT = TileType("energy_pot", "P")
     AGENT_1 = TileType("agent1", "O")
     AGENT_2 = TileType("agent2", "V")
+    INVALID = TileType("invalid", "-")
 
     @classmethod
     def get(cls, index: int):

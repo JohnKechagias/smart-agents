@@ -14,6 +14,9 @@ class Map:
         ]
 
     def get_tile(self, pos: Coords) -> TileType:
+        if not self.is_pos_valid(pos):
+            return Tiles.INVALID
+
         return Tiles.get(self.matrix[pos.x][pos.y])
 
     def set_tile(self, pos: Coords, tile: TileType):
@@ -27,3 +30,8 @@ class Map:
                     f.write(symbol)
 
                 f.write("\n")
+
+    def is_pos_valid(self, coords: Coords) -> bool:
+        x = coords.x
+        y = coords.y
+        return 0 <= x <= self.matrix.shape[0] and 0 <= y <= self.matrix.shape[1]
