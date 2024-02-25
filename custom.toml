@@ -1,0 +1,26 @@
+agents = 3
+
+energy_pots = 20
+energy_pots_energy = 100
+golds = 20
+
+energy_pot_price = 2
+map_price = 3
+
+width = 20
+height = 20
+
+[team1]
+wood = 10
+wheat = 2
+iron = 1
+
+[team2]
+wood = 10
+wheat = 2
+iron = 1
+
+[resources]
+wood = 10
+wheat = 6
+iron = 6

@@ -10,9 +10,6 @@ from .map import Map
 from .tiles import Tiles, TileType
 from .types import Coords
 
-import arcade
-
-
 
 class State(StrEnum):
     GATHERING_RESOURCE = auto()
@@ -82,6 +79,14 @@ class ResourcePile:
     def is_needed(self, tile: TileType) -> bool:
         return tile in self.wanted_resources
 
+    def get_resourse_repr(self) -> str:
+        lines = [
+            f"Wood: {self.wood}/{self.wanted_wood_count}",
+            f"Iron: {self.iron}/{self.wanted_iron_count}",
+            f"Wheat: {self.wheat}/{self.wanted_wheat_count}",
+        ]
+        return " ".join(lines)
+
     def __repr__(self) -> str:
         return f"ResourcePile(wood={self.wood}, iron={self.iron}, wheat={self.wheat})"
 
@@ -115,31 +120,6 @@ class Team:
     def print_resources(self):
         print(f"Team {self.id} {self.resources}")
 
-    def render(self):
-        a = f"Team:{self.id}\n|Iron:{self.resources.iron}/{self.resources.wanted_iron_count}\n|Wheat:{self.resources.wheat}/{self.resources.wanted_wheat_count}\n|Wood:{self.resources.wood}/{self.resources.wanted_wood_count}"
-        print(a)
-        if self.id == 0:
-            arcade.draw_text(
-                a,
-                self.id * 2 + 50 + 500,
-                1500,
-                arcade.color.RED,
-                16,
-                width=100,
-                multiline=True,
-                start_z= -5,
-            )
-        if self.id == 1:
-            arcade.draw_text(
-                a,
-                self.id * 2 + 50 + 1000,
-                1500,
-                arcade.color.RED,
-                16,
-                width=100,
-                multiline=True,
-                start_z= -5,
-            )
 
 class Agent:
     _id_counter = -1

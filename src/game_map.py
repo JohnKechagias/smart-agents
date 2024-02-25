@@ -56,17 +56,26 @@ class GameMap(Map):
                 if x_inside_village and y_inside_village:
                     agent_map[pos.x][pos.y] = self.matrix[pos.x][pos.y]
 
-            agent = Agent(team, Map(agent_map), self, position, map_price)
+            move_range = 2 if team.agent_tile == Tiles.AGENT_2 else 1
+            agent = Agent(team, Map(agent_map), self, position, map_price, move_range)
             team.agents.append(agent)
 
     def get_unpopulated_tile_inside_village(
         self, center: Coords, radius: int
     ) -> Coords:
         pos = center
+        iterations: int = 0
+        max_iterations_with_given_radius = 100
+
         while self.get_tile(pos) != Tiles.EMPTY:
+            if iterations > max_iterations_with_given_radius:
+                radius += 1
+                iterations = 0
+
             x = center.x + floor(radius * (random.randint(-100, 100) / 100))
             y = center.y + floor(radius * (random.randint(-100, 100) / 100))
             pos = Coords(x, y)
+            iterations += 1
         return pos
 
     def generate_resources(self, wood: int, iron: int, wheat: int):
