@@ -6,6 +6,7 @@ from random import randint
 from typing import Optional
 
 from .config import GameConfig
+from .logger import LOGGER
 from .map import Map
 from .tiles import Tiles, TileType
 from .types import Coords
@@ -118,7 +119,7 @@ class Team:
         return cls._id_counter
 
     def print_resources(self):
-        print(f"Team {self.id} {self.resources}")
+        LOGGER.info(f"Team {self.id} {self.resources}")
 
 
 class Agent:
@@ -214,13 +215,15 @@ class Agent:
         self.map.print(f"{self.id}_map.txt")
 
     def update(self):
-        print(f"updating agent {self.id} of team {self.team.id}")
+        LOGGER.info(f"updating agent {self.id} of team {self.team.id}")
         if self.energy_state == Energy.EXCHAUSTED and self.state not in (
             State.GATHERING_ENERGY_POT,
             State.SEARCHING_FOR_ENERGY_POT,
         ):
             self.state = State.SEARCHING_FOR_ENERGY_POT
-            print(f"agent {self.id} searches for energy pot. energy: {self.energy}")
+            LOGGER.info(
+                f"agent {self.id} searches for energy pot. energy: {self.energy}"
+            )
 
         if self.game_map.get_tile(self.position) == Tiles.GOLD:
             self.pick_up_gold()
@@ -234,12 +237,14 @@ class Agent:
                 self.gold -= self.map_price
 
         elif self.state == State.SEARCHING_FOR_ENERGY_POT:
-            print(f"agent {self.id} searches for energy pot. energy: {self.energy}")
+            LOGGER.info(
+                f"agent {self.id} searches for energy pot. energy: {self.energy}"
+            )
             if self.locate_energy_pot():
-                print(f"agent {self.id} is on his way to collect energy pot")
+                LOGGER.info(f"agent {self.id} is on his way to collect energy pot")
             elif not self.has_explore_target:
                 self.set_explore_target()
-                print(f"agent {self.id} is exploring")
+                LOGGER.info(f"agent {self.id} is exploring")
 
             self.move_to_target()
         elif self.state == State.GATHERING_ENERGY_POT:
@@ -332,7 +337,7 @@ class Agent:
 
     def store_resource(self):
         if self.tile == self.team.village.tile:
-            print(f"agent {self.id} stored resource {self.collected_resource}")
+            LOGGER.info(f"agent {self.id} stored resource {self.collected_resource}")
             self.team.resources.add(self.collected_resource)
             self.collected_resource = Tiles.EMPTY
             self.state = State.SEARCHING_FOR_RESOURCE
@@ -365,26 +370,26 @@ class Agent:
             if hop_coords in self.visited_tiles or is_hope_target_agent:
                 continue
 
-            print(f"agent {self.id} moved from {self.position} to {hop_coords}")
+            LOGGER.info(f"agent {self.id} moved from {self.position} to {hop_coords}")
             self.position = hop_coords
             return
 
         self.visited_tiles.clear()
 
     def pick_up_energy_pot(self):
-        print(f"agent {self.id} picked up energy pot")
+        LOGGER.info(f"agent {self.id} picked up energy pot")
         self.tile = Tiles.EMPTY
         new_energy_bar = self._energy + self.team.config.energy_pots_energy
         self._energy = min(new_energy_bar, 100)
         self.visited_tiles.clear()
 
     def pick_up_gold(self):
-        print(f"agent {self.id} picked up gold")
+        LOGGER.info(f"agent {self.id} picked up gold")
         self.tile = Tiles.EMPTY
         self.gold += 1
 
     def pick_up_resource(self):
-        print(f"agent {self.id} picked up resource {self.tile.name}")
+        LOGGER.info(f"agent {self.id} picked up resource {self.tile.name}")
         self.collected_resource = self.tile
         self.tile = Tiles.EMPTY
         self.visited_tiles.clear()
@@ -393,14 +398,14 @@ class Agent:
         self.state = State.STORING_RESOURCE
 
     def buy_energy_pot(self):
-        print(f"agent {self.id} bought energy pot")
+        LOGGER.info(f"agent {self.id} bought energy pot")
         self.gold -= self.team.config.energy_pot_price
         new_energy_bar = self._energy + self.team.config.energy_pots_energy
         self._energy = min(new_energy_bar, 100)
         self.visited_tiles.clear()
 
     def buy_map(self, map: Map):
-        print(f"agent {self.id} bought a map")
+        LOGGER.info(f"agent {self.id} bought a map")
         self.gold -= self.team.config.map_price
         for pos in self.map.positions:
             tile = self.map.get_tile(pos)

@@ -7,6 +7,7 @@ from .agent import ResourcePile, Team, Village
 from .config import GameConfig
 from .constants import MENU_HEIGHT, MENU_PADDING, WINDOW_PADDING, colors
 from .game_map import GameMap
+from .logger import LOGGER
 from .menu import Menu
 from .tile import Tile
 from .tiles import Tiles
@@ -67,7 +68,7 @@ class Game(arcade.Window):
             self.shapes_list.append(tile.shape)
 
     def initialize(self, config: GameConfig):
-        print(f"Creating resource piles...")
+        LOGGER.info(f"Creating resource piles...")
         team1_resources = ResourcePile(**config.team1)
         team2_resources = ResourcePile(**config.team2)
 
@@ -81,14 +82,14 @@ class Game(arcade.Window):
             (config.height * 7) // 10,
         )
 
-        print(f"Center of village 1: {village1_center}")
-        print(f"Center of village 2: {village2_center}")
+        LOGGER.info(f"Center of village 1: {village1_center}")
+        LOGGER.info(f"Center of village 2: {village2_center}")
 
-        print(f"Creating villages...")
+        LOGGER.info(f"Creating villages...")
         village1 = Village(village1_center, Tiles.VILLAGE_1)
         village2 = Village(village2_center, Tiles.VILLAGE_2)
 
-        print(f"Creating map...")
+        LOGGER.info(f"Creating map...")
         self.map = GameMap(
             config.width,
             config.height,
@@ -104,12 +105,12 @@ class Game(arcade.Window):
         self.selected_team: Literal[0, 1] = 0
         self.selected_agent_num = 0
 
-        print(f"Creating teams...")
+        LOGGER.info(f"Creating teams...")
         team1 = Team(village1, team1_resources, Tiles.AGENT_1, config)
         team2 = Team(village2, team2_resources, Tiles.AGENT_2, config)
         self.teams = [team1, team2]
 
-        print(f"Creating agents...")
+        LOGGER.info(f"Creating agents...")
         for team in self.teams:
             self.map.generate_players(team, config.agents, config.map_price)
 
@@ -125,7 +126,7 @@ class Game(arcade.Window):
 
         for team in self.teams:
             if not team.resources.wanted_resources:
-                print(f"Team {team.id} Won!")
+                LOGGER.info(f"Team {team.id} Won!")
                 exit()
 
     def on_draw(self):
@@ -185,14 +186,14 @@ class Game(arcade.Window):
                 self.map_to_show = agent.map.matrix
 
     def pause(self):
-        print("GAME PAUSED")
+        LOGGER.info("GAME PAUSED")
         self.is_paused = True
 
     def resume(self):
-        print("GAME RESUMED")
+        LOGGER.info("GAME RESUMED")
         self.is_paused = False
 
     def restart(self):
-        print("GAME RESTARTED")
+        LOGGER.info("GAME RESTARTED")
         self.is_paused = False
         self.reset()

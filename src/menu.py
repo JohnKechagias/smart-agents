@@ -17,8 +17,8 @@ class Menu:
 
         self.team1_resourses_text = arcade.Text(
             text="",
-            start_x=int(self.point[0] - 0.47 * MENU_WIDTH),
-            start_y=int(self.point[1]),
+            x=int(self.point[0] - 0.47 * MENU_WIDTH),
+            y=int(self.point[1]),
             color=self.color,
             font_size=self.label_font_size,
             width=self.label_width,
@@ -27,8 +27,8 @@ class Menu:
 
         self.round_text = arcade.Text(
             text="",
-            start_x=int(self.point[0] - 0.05 * MENU_WIDTH),
-            start_y=int(self.point[1]),
+            x=int(self.point[0] - 0.05 * MENU_WIDTH),
+            y=int(self.point[1]),
             color=self.color,
             font_size=self.label_font_size,
             width=self.label_width,
@@ -36,8 +36,8 @@ class Menu:
 
         self.team2_resourses_text = arcade.Text(
             text="",
-            start_x=int(self.point[0] + 0.1 * MENU_WIDTH),
-            start_y=int(self.point[1]),
+            x=int(self.point[0] + 0.1 * MENU_WIDTH),
+            y=int(self.point[1]),
             color=self.color,
             font_size=self.label_font_size,
             width=self.label_width,
